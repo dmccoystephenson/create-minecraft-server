@@ -299,13 +299,13 @@ Run this section when the skill may have drifted from reality — e.g. after the
    - Whether the Mojang, Spigot, Docker Hub and Modrinth endpoints quoted here still return what is claimed
 4. For each problem found, open a GitHub issue:
    ```bash
-   gh issue create --repo dmccoystephenson/create-minecraft-server \
-     --title "<problem summary>" \
-     --body "$(cat <<'EOF'
-   **Section:** <which step or section is wrong>
-   **Problem:** <what is incorrect>
-   **Expected behavior:** <what it should do instead>
-   EOF
-   )"
+gh issue create --repo dmccoystephenson/create-minecraft-server \
+  --title "<problem summary>" \
+  --body "$(cat <<'EOF'
+**Section:** <which step or section is wrong>
+**Problem:** <what is incorrect>
+**Expected behavior:** <what it should do instead>
+EOF
+)"
    ```
 5. Report a summary: how many issues were filed, or confirm the skill is up to date.
