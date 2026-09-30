@@ -147,7 +147,9 @@ It must contain:
 - **`KUBECONFIG` resolved relative to the file** — derive the repo directory from `${BASH_SOURCE[0]}` so any clone on any machine works without editing a path. The kubeconfig does not exist until after the first apply; warn to stderr rather than `exit`, since a hard failure inside a sourced file kills an interactive shell.
 - **A README that states the bargain plainly**: this repo holds live credentials in plaintext on purpose; anyone with read access controls the Hetzner account, the cluster, RCON, and the dashboard; values live in git history forever; the kubeconfig is a cluster-admin certificate that **cannot be revoked**, because Kubernetes has no CRL. Keep it private, never fork it to a public namespace.
 - **Comments that explain the non-obvious values** — especially any figure that was measured rather than assumed, and any setting whose default is wrong for this server. Record *why*, so a future reader does not tidy it away.
-- **`TF_VAR_allowed_ssh_cidr` as a required value, not a default.** OMCSI defaults it to `0.0.0.0/0`, which puts SSH *and* the cluster-admin API on the open internet. Set it to a `/32`. Note in a comment that it is the provisioning machine's egress IP, may not be stable, and that a timeout on 22 or 6443 is most likely this rule — fixable via the Hetzner API without touching the server.
+- **`TF_VAR_allowed_ssh_cidr` as a required value, not a default.** OMCSI defaults it to `0.0.0.0/0`, which (with `allowed_api_cidrs` left empty) puts SSH *and* the cluster-admin API on the open internet. Set it to a `/32`. Note in a comment that it is the provisioning machine's egress IP, may not be stable, and that a timeout on 22 or 6443 is most likely this rule — fixable via the Hetzner API without touching the server.
+- **`TF_VAR_allowed_api_cidrs` only if the API needs a different audience than SSH.** It is a list that governs 6443 alone, and OMCSI defaults it to empty, which **falls back to `allowed_ssh_cidr`**. Leave it unset for a single operator. Set it to give a monitoring host or a second operator `kubectl` access without also handing them a shell on the node. If you set it, record in a comment that 6443 no longer follows the SSH value.
+- **`TF_VAR_rbac_enabled` if anyone but the author will run `kubectl`.** It creates namespace-scoped ServiceAccounts, so day-to-day access need not use the non-revocable cluster-admin kubeconfig. It is off by default because enabling it mints credentials.
 
 Generate secrets rather than inventing them (`secrets.choice` over `string.ascii_letters+string.digits`, 32+ chars). Never print a secret into the transcript, a commit message, or a log.
 
@@ -195,7 +197,7 @@ for rc in json.load(sys.stdin)['resource_changes']:
 "
 ```
 
-SSH (22) and the Kubernetes API (6443) must be the `/32`. Minecraft (25565) and the dashboard (80/443) are public by design.
+SSH (22) must be the `/32`. The Kubernetes API (6443) must be exactly `TF_VAR_allowed_api_cidrs` if it is set, and otherwise the same `/32`, because OMCSI falls back to `allowed_ssh_cidr` when the list is empty. Minecraft (25565) and the dashboard (80/443) are public by design.
 
 Then `terraform apply plan.tfplan`. It blocks through server creation, the cloud-init kubeadm bootstrap, and the Helm install — several minutes. **Run it in the background and watch the log**, rather than in a foreground call that may time out.
 
@@ -273,7 +275,7 @@ When posting issues or PRs under the user's GitHub identity, follow their conven
 | Trusting documented prices | Quote can be out by 2× |
 | `MINECRAFT_VERSION` ≠ image tag | Container exits on start, no fallback |
 | One image tag for all services | `ImagePullBackOff` on everything but the Minecraft image |
-| `allowed_ssh_cidr` left at default | SSH and cluster-admin API open to the internet |
+| `allowed_ssh_cidr` left at default | SSH open to the internet, and the cluster-admin API too unless `allowed_api_cidrs` is set |
 | `DEFAULT_PLUGINS` after first setup | Silently does nothing |
 | Whitelist enabled, list empty | Nobody can join, including the operator |
 | Rebuild onto an empty volume | Whitelist gone; server up, reachable, admitting nobody |
