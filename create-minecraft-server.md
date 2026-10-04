@@ -221,6 +221,8 @@ Afterwards, copy the generated `kubeconfig.yaml` into the config repo and commit
 
 4. **Per-plugin post-install steps** have no variables behind them. Two seen in practice: BlueMap renders nothing until `accept-download: true` is set in its `core.conf` (until then `/map/` is a 502); Herald installs inert and reads its config only at plugin enable, so it needs config written *and* a restart.
 
+5. **Restart only with nobody online.** A restart drops every connected player, and a plugin that saves only in `onDisable` rolls back to its last save.
+
 ---
 
 ### 9 — Verify, mostly without a Minecraft client
@@ -229,7 +231,7 @@ Almost everything can be checked from outside. Do it — "the pods are running" 
 
 - **Server-list ping on 25565.** The strongest single check: it proves Spigot is serving publicly and returns the version, MOTD and player count. Implement the handshake directly (a few dozen lines of Python) rather than adding a dependency. Note the MOTD may arrive as `{"text":"","extra":["..."]}` — read `extra`, not just `text`.
 - **`kubectl get pods -n omcsi`** — all `1/1`, restart counts at zero.
-- **Whitelist across a restart.** `white-list=true` must survive a *container* restart, since that is what regenerates `server.properties`. Restarting Spigot through the wrapper API does not exercise the same path.
+- **Whitelist across a restart.** `white-list=true` must survive a *container* restart, since that is what regenerates `server.properties` — which also means hand-edits to that file do not survive one. Restarting Spigot through the wrapper API does not exercise the same path.
 - **Every plugin enabled**: `kubectl logs … | grep -oE "Enabling [A-Za-z]+ v[0-9.]+" | sort -u`.
 - **Dashboard** returns 302; **BlueMap** `/map/` returns 200 and serves the webapp.
 - **Alerts reached Discord**: `kubectl logs deploy/…-alert-manager | grep Discord`.
@@ -276,7 +278,7 @@ When posting issues or PRs under the user's GitHub identity, follow their conven
 | `MINECRAFT_VERSION` ≠ image tag | Container exits on start, no fallback |
 | One image tag for all services | `ImagePullBackOff` on everything but the Minecraft image |
 | `allowed_ssh_cidr` left at default | SSH open to the internet, and the cluster-admin API too unless `allowed_api_cidrs` is set |
-| `DEFAULT_PLUGINS` after first setup | Silently does nothing |
+| `TF_VAR_default_plugins` after first setup | Silently does nothing |
 | Whitelist enabled, list empty | Nobody can join, including the operator |
 | Rebuild onto an empty volume | Whitelist gone; server up, reachable, admitting nobody |
 | `server.properties` hand-edits | Regenerated on every container start |
