@@ -14,7 +14,7 @@ Every serious problem in the session this skill came from was a case of trusting
 
 | Stated | Actual |
 |---|---|
-| `cax31` costs ~EUR 12.49/mo (OMCSI docs) | EUR 24.99 — the quoted figure is `cax21`'s price |
+| `cax31` costs ~EUR 12.49/mo (OMCSI docs at the time; since corrected) | EUR 24.99 — the quoted figure is `cax21`'s price |
 | Hetzner's API lists CAX types as `available` in a location | Every CAX create is refused there |
 | "First boot takes 10–15 min for a BuildTools compile" | ~90 seconds; BuildTools runs at image-build time |
 | A plugin "enables cleanly", so it works | One threw on every block break and buried the logs |
@@ -113,6 +113,8 @@ curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" -X POST https://api.hetzner.clo
 ### 4 — Align the Minecraft version with the image
 
 **The runtime `MINECRAFT_VERSION` only selects a jar that is already baked into the image.** OMCSI's `Dockerfile` runs BuildTools at *build* time via `ARG MINECRAFT_VERSION`, and `resources/post-create.sh` copies `spigot-${MINECRAFT_VERSION}.jar` out of the image under `set -euo pipefail`. A mismatch exits the container; it does not fall back.
+
+**OMCSI builds Minecraft 1.17 and later only.** BuildTools and the server each accept only a range of JDKs, so `resources/java-for-minecraft.sh` picks one per version for both the build and the run: 17 up to 1.20.4, 21 for 1.20.5–1.21.x, 25 from 26.x. Anything older needs Java 8–16, which the image does not carry, so the build refuses it rather than trying.
 
 ```bash
 # what the latest Minecraft release is
