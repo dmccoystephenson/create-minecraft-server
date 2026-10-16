@@ -302,7 +302,7 @@ Run this section when the skill may have drifted from reality — e.g. after the
    - OMCSI's Terraform variables, defaults, and which settings the Hetzner module templates
    - Which container image tags CI publishes
    - Hetzner server types, prices, and per-project availability
-   - Whether the Mojang, Spigot, Docker Hub and Modrinth endpoints quoted here still return what is claimed
+   - Whether the Mojang, Spigot and Docker Hub endpoints quoted here still return what is claimed
 4. For each problem found, open a GitHub issue:
    ```bash
 gh issue create --repo dmccoystephenson/create-minecraft-server \
