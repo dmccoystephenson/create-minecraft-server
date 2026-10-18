@@ -122,14 +122,16 @@ curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['latest']['release'])"
 # whether Spigot BuildTools has that rev
 curl -s https://hub.spigotmc.org/versions/ | grep -o '[0-9.]*\.json' | sort -V | tail -5
-# what images actually exist
-curl -s 'https://hub.docker.com/v2/repositories/dmccoystephenson/open-mc-server/tags?page_size=25' \
-  | python3 -c "import sys,json;print([t['name'] for t in json.load(sys.stdin)['results']])"
+# what images actually exist (commit-SHA tags filtered out)
+curl -s 'https://hub.docker.com/v2/repositories/dmccoystephenson/open-mc-server/tags?page_size=100' \
+  | python3 -c "import sys,json,re;print([t['name'] for t in json.load(sys.stdin)['results'] if not re.fullmatch('[0-9a-f]{40}',t['name'])])"
 ```
+
+Every publish also pushes a commit-SHA tag, and the API returns tags newest first, so on a short page the SHAs push older version tags out of view. The filter and the larger page keep them in view.
 
 If the wanted version has no published image, it needs an upstream bump to the `Dockerfile` `ARG` (CI then republishes) or a `workflow_dispatch` of the publish workflow. Budget for it: BuildTools compiles Spigot from source, and the arm64 leg runs under emulation.
 
-**Two image tags, not one.** CI publishes a version tag for `open-mc-server` **only**; the supporting images (`webapp`, `nginx`, `alert-manager`, `backup-manager`, `agent-manager`) are pushed as `latest` and as the SHA of the commit that built them — never a version. Set `TF_VAR_image_tag` to the Minecraft version and `TF_VAR_supporting_image_tag` to `latest` or a commit SHA — pinning the supporting images to a version tag yields `ImagePullBackOff`. A SHA tag exists only for commits that rebuilt the images, since the publish workflow is path-filtered, so confirm it on Docker Hub before pinning it.
+**Two image tags, not one.** CI publishes a version tag for `open-mc-server` **only** (alongside `latest` and a commit SHA); the supporting images (`webapp`, `nginx`, `alert-manager`, `backup-manager`, `agent-manager`) are pushed as `latest` and as the SHA of the commit that built them — never a version. Set `TF_VAR_image_tag` to the Minecraft version and `TF_VAR_supporting_image_tag` to `latest` or a commit SHA — pinning the supporting images to a version tag yields `ImagePullBackOff`. A SHA tag exists only for commits that rebuilt the images, since the publish workflow is path-filtered, so confirm it on Docker Hub before pinning it.
 
 **Check plugin compatibility separately**, and be honest that you cannot fully. A plugin's `plugin.yml` `api-version` is a compatibility *floor*, not a claim of support. That a plugin loads is not evidence it works — see the trap in Step 9.
 
