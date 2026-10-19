@@ -223,7 +223,9 @@ Afterwards, copy the generated `kubeconfig.yaml` into the config repo and commit
 
 3. **Confirm the plugins installed.** `TF_VAR_default_plugins` is read on **every container start**, but only reaches the pod through `terraform apply` — editing `.env` alone does nothing. A re-apply with a changed list re-runs the Helm upgrade and replaces the Minecraft pod, so it is a restart (item 5 applies). A jar already in `plugins/` under the URL's filename is skipped, so a new URL with the same filename does not update it. To add a plugin without a restart, use the hot-deploy endpoint *and* add an entry to the list for next time — forgetting the second half is how a server ends up with a route and no plugin behind it.
 
-4. **Per-plugin post-install steps** have no variables behind them. Two seen in practice: BlueMap renders nothing until `accept-download: true` is set in its `core.conf` (until then `/map/` is a 502); Herald installs inert and reads its config only at plugin enable, so it needs config written *and* a restart.
+4. **Per-plugin post-install steps** mostly have no variables behind them. Two seen in practice: BlueMap renders nothing until `accept-download: true` is set in its `core.conf` (until then `/map/` is a 502); Herald installs inert and reads its config only at plugin enable, so it needs config written *and* a restart.
+
+   **BlueMap's route is the exception: it has a variable, and it defaults off.** OMCSI's nginx proxies `/map/` to BlueMap only when `TF_VAR_bluemap_enabled=true` (path from `TF_VAR_bluemap_path`, default `/map/`). Left at `false`, `/map/` falls through to the dashboard and never reaches BlueMap, however the plugin is configured. Like any variable it reaches the cluster only through `terraform apply`.
 
 5. **Restart only with nobody online.** A restart drops every connected player, and a plugin that saves only in `onDisable` rolls back to its last save.
 
@@ -237,7 +239,7 @@ Almost everything can be checked from outside. Do it — "the pods are running" 
 - **`kubectl get pods -n omcsi`** — all `1/1`, restart counts at zero.
 - **Whitelist across a restart.** `white-list=true` must survive a *container* restart, since that is what regenerates `server.properties` — which also means hand-edits to that file do not survive one. Restarting Spigot through the wrapper API does not exercise the same path.
 - **Every plugin enabled**: `kubectl logs … | grep -oE "Enabling [A-Za-z]+ v[0-9.]+" | sort -u`.
-- **Dashboard** returns 302; **BlueMap** `/map/` returns 200 and serves the webapp.
+- **Dashboard** returns 302; **BlueMap** `/map/` returns 200 and serves the webapp (only routed with `TF_VAR_bluemap_enabled=true` — see Step 8).
 - **Alerts reached Discord**: `kubectl logs deploy/…-alert-manager | grep Discord`.
 
 > **Loading is not working.** A plugin can enable cleanly on a new Minecraft version and then throw on every event. One shaded a version-mapping library too old for the server version and raised an exception on every block interact, break and place — gameplay survived because Bukkit catches listener exceptions, but each failure printed a ~40-line stack trace. At ~1 MB/min the container log rotated so fast that only **about a minute** of history was retained: joins, plugin notifications and unrelated errors were gone before anyone could read them.
