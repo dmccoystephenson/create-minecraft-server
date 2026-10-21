@@ -112,7 +112,7 @@ curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" -X POST https://api.hetzner.clo
 
 ### 4 — Align the Minecraft version with the image
 
-**The runtime `MINECRAFT_VERSION` only selects a jar that is already baked into the image.** OMCSI's `Dockerfile` runs BuildTools at *build* time via `ARG MINECRAFT_VERSION`, and `resources/post-create.sh` copies `spigot-${MINECRAFT_VERSION}.jar` out of the image under `set -euo pipefail`. A mismatch exits the container; it does not fall back. On Hetzner, `MINECRAFT_VERSION` comes from **`TF_VAR_minecraft_version`**, a separate variable from the image tag with its own hard-coded default. Pinning `TF_VAR_image_tag` alone leaves the two out of step.
+**The runtime `MINECRAFT_VERSION` only selects a jar that is already baked into the image.** OMCSI's `Dockerfile` runs BuildTools at *build* time via `ARG MINECRAFT_VERSION`, and `resources/post-create.sh` copies `spigot-${MINECRAFT_VERSION}.jar` out of the image under `set -euo pipefail`. A mismatch exits the container; it does not fall back. On Hetzner, `MINECRAFT_VERSION` comes from **`TF_VAR_minecraft_version`**, a separate variable from the image tag with its own hard-coded default. Pinning `TF_VAR_image_tag` alone works only while it happens to equal that default.
 
 **OMCSI builds Minecraft 1.17 and later only.** BuildTools and the server each accept only a range of JDKs, so `resources/java-for-minecraft.sh` picks one per version for both the build and the run: 17 up to 1.20.4, 21 for 1.20.5–1.21.x, 25 from 26.x. Anything older needs Java 8–16, which the image does not carry, so the build refuses it rather than trying.
 
