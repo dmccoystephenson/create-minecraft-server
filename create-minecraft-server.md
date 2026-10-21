@@ -112,7 +112,7 @@ curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" -X POST https://api.hetzner.clo
 
 ### 4 — Align the Minecraft version with the image
 
-**The runtime `MINECRAFT_VERSION` only selects a jar that is already baked into the image.** OMCSI's `Dockerfile` runs BuildTools at *build* time via `ARG MINECRAFT_VERSION`, and `resources/post-create.sh` copies `spigot-${MINECRAFT_VERSION}.jar` out of the image under `set -euo pipefail`. A mismatch exits the container; it does not fall back.
+**The runtime `MINECRAFT_VERSION` only selects a jar that is already baked into the image.** OMCSI's `Dockerfile` runs BuildTools at *build* time via `ARG MINECRAFT_VERSION`, and `resources/post-create.sh` copies `spigot-${MINECRAFT_VERSION}.jar` out of the image under `set -euo pipefail`. A mismatch exits the container; it does not fall back. On Hetzner, `MINECRAFT_VERSION` comes from **`TF_VAR_minecraft_version`**, a separate variable from the image tag with its own hard-coded default. Pinning `TF_VAR_image_tag` alone works only while it happens to equal that default.
 
 **OMCSI builds Minecraft 1.17 and later only.** BuildTools and the server each accept only a range of JDKs, so `resources/java-for-minecraft.sh` picks one per version for both the build and the run: 17 up to 1.20.4, 21 for 1.20.5–1.21.x, 25 from 26.x. Anything older needs Java 8–16, which the image does not carry, so the build refuses it rather than trying.
 
@@ -131,7 +131,7 @@ Every publish also pushes a commit-SHA tag, and the API returns tags newest firs
 
 If the wanted version has no published image, it needs an upstream bump to the `Dockerfile` `ARG` (CI then republishes) or a `workflow_dispatch` of the publish workflow. Budget for it: BuildTools compiles Spigot from source, and the arm64 leg runs under emulation.
 
-**Two image tags, not one.** CI publishes a version tag for `open-mc-server` **only** (alongside `latest` and a commit SHA); the supporting images (`webapp`, `nginx`, `alert-manager`, `backup-manager`, `agent-manager`) are pushed as `latest` and as the SHA of the commit that built them — never a version. Set `TF_VAR_image_tag` to the Minecraft version and `TF_VAR_supporting_image_tag` to `latest` or a commit SHA — pinning the supporting images to a version tag yields `ImagePullBackOff`. A SHA tag exists only for commits that rebuilt the images, since the publish workflow is path-filtered, so confirm it on Docker Hub before pinning it.
+**Two image tags, not one.** CI publishes a version tag for `open-mc-server` **only** (alongside `latest` and a commit SHA); the supporting images (`webapp`, `nginx`, `alert-manager`, `backup-manager`, `agent-manager`) are pushed as `latest` and as the SHA of the commit that built them — never a version. Set `TF_VAR_minecraft_version` and `TF_VAR_image_tag` to the same Minecraft version, and `TF_VAR_supporting_image_tag` to `latest` or a commit SHA — pinning the supporting images to a version tag yields `ImagePullBackOff`. A SHA tag exists only for commits that rebuilt the images, since the publish workflow is path-filtered, so confirm it on Docker Hub before pinning it.
 
 **Check plugin compatibility separately**, and be honest that you cannot fully. A plugin's `plugin.yml` `api-version` is a compatibility *floor*, not a claim of support. That a plugin loads is not evidence it works — see the trap in Step 9.
 
@@ -281,7 +281,7 @@ When posting issues or PRs under the user's GitHub identity, follow their conven
 |---|---|
 | Trusting `/v1/datacenters` `available` | Apply fails with `unsupported location for server type` |
 | Trusting documented prices | Quote can be out by 2× |
-| `MINECRAFT_VERSION` ≠ image tag | Container exits on start, no fallback |
+| `TF_VAR_minecraft_version` ≠ `TF_VAR_image_tag` | Container exits on start, no fallback |
 | One image tag for all services | `ImagePullBackOff` on everything but the Minecraft image |
 | `allowed_ssh_cidr` left at default | SSH open to the internet, and the cluster-admin API too unless `allowed_api_cidrs` is set |
 | `TF_VAR_default_plugins` edited without a re-apply | Silently does nothing; the re-apply that fixes it restarts the server |
