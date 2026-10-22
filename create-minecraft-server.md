@@ -237,7 +237,7 @@ Almost everything can be checked from outside. Do it — "the pods are running" 
 
 - **Server-list ping on 25565.** The strongest single check: it proves Spigot is serving publicly and returns the version, MOTD and player count. Implement the handshake directly (a few dozen lines of Python) rather than adding a dependency. Note the MOTD may arrive as `{"text":"","extra":["..."]}` — read `extra`, not just `text`.
 - **`kubectl get pods -n omcsi`** — all `1/1`, restart counts at zero.
-- **Whitelist across a restart.** `white-list=true` must survive a *container* restart, since that is what regenerates `server.properties` — which also means hand-edits to that file do not survive one. Restarting Spigot through the wrapper API does not exercise the same path.
+- **Whitelist across a restart.** `white-list=true` must survive a *container* restart, since that is what regenerates `server.properties` — which also means hand-edits to that file do not survive one, and neither does an in-game `/whitelist on`. The only keys you control are those OMCSI fills from Terraform variables: `TF_VAR_whitelist_enabled`, `TF_VAR_enforce_whitelist`, `TF_VAR_difficulty`, `TF_VAR_gamemode`, `TF_VAR_pvp_enabled`, `TF_VAR_online_mode`, `TF_VAR_max_players` and `TF_VAR_server_motd`. Change one there and re-apply, which restarts the server (Step 8, item 5). Every other key is fixed by OMCSI. Restarting Spigot through the wrapper API does not exercise the same path.
 - **Every plugin enabled**: `kubectl logs … | grep -oE "Enabling [A-Za-z]+ v[0-9.]+" | sort -u`.
 - **Dashboard** returns 302; **BlueMap** `/map/` returns 200 and serves the webapp (only routed with `TF_VAR_bluemap_enabled=true` — see Step 8).
 - **Alerts reached Discord**: `kubectl logs deploy/…-alert-manager | grep Discord`.
@@ -287,7 +287,7 @@ When posting issues or PRs under the user's GitHub identity, follow their conven
 | `TF_VAR_default_plugins` edited without a re-apply | Silently does nothing; the re-apply that fixes it restarts the server |
 | Whitelist enabled, list empty | Nobody can join, including the operator |
 | Rebuild onto an empty volume | Whitelist gone; server up, reachable, admitting nobody |
-| `server.properties` hand-edits | Regenerated on every container start |
+| `server.properties` hand-edits, or `/whitelist on` in game | Regenerated on every container start; only the `TF_VAR_`-backed keys persist |
 | "It enables, so it works" | Runtime failure floods the log and destroys history |
 | Restarting while players are online | Drops everyone; also rolls back plugins that save only in `onDisable` |
 
