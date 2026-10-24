@@ -223,6 +223,8 @@ Afterwards, copy the generated `kubeconfig.yaml` into the config repo and commit
 
 3. **Confirm the plugins installed.** `TF_VAR_default_plugins` is read on **every container start**, but only reaches the pod through `terraform apply` — editing `.env` alone does nothing. A re-apply with a changed list re-runs the Helm upgrade and replaces the Minecraft pod, so it is a restart (item 5 applies). A jar already in `plugins/` under the URL's filename is skipped, so a new URL with the same filename does not update it. To add a plugin without a restart, use the hot-deploy endpoint *and* add an entry to the list for next time — forgetting the second half is how a server ends up with a route and no plugin behind it.
 
+   **The hot-deploy endpoint needs `TF_VAR_deploy_auth_token`, and it defaults to empty.** With no token the wrapper still serves `POST /api/plugins/deploy` but rejects every request, and logs only that the token is not configured. That looks like a bad credential, not a disabled feature. Generate the token like the other secrets (Step 5), keep it in the config repo's `.env`, and send it as `Authorization: Bearer <token>`. Unlike `TF_VAR_default_plugins`, it reaches the pod through a Kubernetes Secret, and the chart puts no checksum of that Secret on the pod. So a re-apply that changes only the token updates the Secret, but the running wrapper keeps the empty value until its pod restarts, and that is a server restart (item 5). Set it before the first apply if hot-deploy will ever be wanted. The same token also gates world upload from the dashboard.
+
 4. **Per-plugin post-install steps** mostly have no variables behind them. Two seen in practice: BlueMap renders nothing until `accept-download: true` is set in its `core.conf` (until then `/map/` is a 502); Herald installs inert and reads its config only at plugin enable, so it needs config written *and* a restart.
 
    **BlueMap's route is the exception: it has a variable, and it defaults off.** OMCSI's nginx proxies `/map/` to BlueMap only when `TF_VAR_bluemap_enabled=true` (path from `TF_VAR_bluemap_path`, default `/map/`). Left at `false`, `/map/` falls through to the dashboard and never reaches BlueMap, however the plugin is configured. Like any variable it reaches the cluster only through `terraform apply`.
@@ -285,6 +287,7 @@ When posting issues or PRs under the user's GitHub identity, follow their conven
 | One image tag for all services | `ImagePullBackOff` on everything but the Minecraft image |
 | `allowed_ssh_cidr` left at default | SSH open to the internet, and the cluster-admin API too unless `allowed_api_cidrs` is set |
 | `TF_VAR_default_plugins` edited without a re-apply | Silently does nothing; the re-apply that fixes it restarts the server |
+| Hot-deploy with `TF_VAR_deploy_auth_token` unset | Every deploy request is rejected; setting it later needs a re-apply *and* a pod restart, since the re-apply alone does not roll the pod |
 | Whitelist enabled, list empty | Nobody can join, including the operator |
 | Rebuild onto an empty volume | Whitelist gone; server up, reachable, admitting nobody |
 | `server.properties` hand-edits, or `/whitelist on` in game | Regenerated on every container start; only the `TF_VAR_`-backed keys persist |
