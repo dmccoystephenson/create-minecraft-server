@@ -287,7 +287,9 @@ When posting issues or PRs under the user's GitHub identity, follow their conven
 | One image tag for all services | `ImagePullBackOff` on everything but the Minecraft image |
 | `allowed_ssh_cidr` left at default | SSH open to the internet, and the cluster-admin API too unless `allowed_api_cidrs` is set |
 | `TF_VAR_default_plugins` edited without a re-apply | Silently does nothing; the re-apply that fixes it restarts the server |
+| New plugin URL with the same jar filename | Skipped as already installed; the old jar keeps running |
 | Hot-deploy with `TF_VAR_deploy_auth_token` unset | Every deploy request is rejected; setting it later needs a re-apply *and* a pod restart, since the re-apply alone does not roll the pod |
+| BlueMap installed with `TF_VAR_bluemap_enabled` left `false` | `/map/` serves the dashboard, never BlueMap, however the plugin is configured |
 | Whitelist enabled, list empty | Nobody can join, including the operator |
 | Rebuild onto an empty volume | Whitelist gone; server up, reachable, admitting nobody |
 | `server.properties` hand-edits, or `/whitelist on` in game | Regenerated on every container start; only the `TF_VAR_`-backed keys persist |
