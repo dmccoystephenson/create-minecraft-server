@@ -283,13 +283,17 @@ When posting issues or PRs under the user's GitHub identity, follow their conven
 |---|---|
 | Trusting `/v1/datacenters` `available` | Apply fails with `unsupported location for server type` |
 | Trusting documented prices | Quote can be out by 2× |
+| Hetzner token created read-only | The apply fails late, after the rest of the setup is done |
 | `TF_VAR_minecraft_version` ≠ `TF_VAR_image_tag` | Container exits on start, no fallback |
 | One image tag for all services | `ImagePullBackOff` on everything but the Minecraft image |
 | `allowed_ssh_cidr` left at default | SSH open to the internet, and the cluster-admin API too unless `allowed_api_cidrs` is set |
+| One OMCSI checkout shared between servers | Two servers' Terraform state mixed in one directory |
+| Operator UUID typed by hand, not resolved from Mojang | A mismatched UUID ops nobody, and nothing reports it |
 | `TF_VAR_default_plugins` edited without a re-apply | Silently does nothing; the re-apply that fixes it restarts the server |
 | New plugin URL with the same jar filename | Skipped as already installed; the old jar keeps running |
 | Hot-deploy with `TF_VAR_deploy_auth_token` unset | Every deploy request is rejected; setting it later needs a re-apply *and* a pod restart, since the re-apply alone does not roll the pod |
 | BlueMap installed with `TF_VAR_bluemap_enabled` left `false` | `/map/` serves the dashboard, never BlueMap, however the plugin is configured |
+| BlueMap without `accept-download: true` in `core.conf` | Renders nothing; `/map/` is a 502 |
 | Whitelist enabled, list empty | Nobody can join, including the operator |
 | Rebuild onto an empty volume | Whitelist gone; server up, reachable, admitting nobody |
 | `server.properties` hand-edits, or `/whitelist on` in game | Regenerated on every container start; only the `TF_VAR_`-backed keys persist |
