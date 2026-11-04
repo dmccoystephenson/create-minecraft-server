@@ -154,6 +154,7 @@ It must contain:
 - **`TF_VAR_allowed_ssh_cidr` as a required value, not a default.** OMCSI defaults it to `0.0.0.0/0`, which (with `allowed_api_cidrs` left empty) puts SSH *and* the cluster-admin API on the open internet. Set it to a `/32`. Note in a comment that it is the provisioning machine's egress IP, may not be stable, and that a timeout on 22 or 6443 is most likely this rule (or, for 6443, `allowed_api_cidrs` if set) — fixable via the Hetzner API without touching the server.
 - **`TF_VAR_allowed_api_cidrs` only if the API needs a different audience than SSH.** It is a list that governs 6443 alone, and OMCSI defaults it to empty, which **falls back to `allowed_ssh_cidr`**. Leave it unset for a single operator. Set it to give a monitoring host or a second operator `kubectl` access without also handing them a shell on the node. If you set it, record in a comment that 6443 no longer follows the SSH value.
 - **`TF_VAR_rbac_enabled` if anyone but the author will run `kubectl`.** It creates namespace-scoped ServiceAccounts, so day-to-day access need not use the non-revocable cluster-admin kubeconfig. It is off by default because enabling it mints credentials. The extra `TF_VAR_rbac_operator_enabled` account is namespace-admin and can still read the Secrets holding the RCON and admin passwords, so it is a reduction from cluster-admin, not a low-privilege credential.
+- **Usage reporting: decide before the first apply, because no `TF_VAR_` controls it.** By default OMCSI's wrapper sends one `startup` event on every start to `https://trace.danielstephenson.dev`: program name, version, a random installation ID and any `USAGE_REPORTING_TAGS`. The Hetzner module templates none of these, so the chart default `USAGE_REPORTING_ENABLED: "true"` applies, and the first apply sends the first event. To opt out, add `USAGE_REPORTING_ENABLED: "false"` under `minecraftWrapper.env` in `terraform/hetzner/values.yaml.tftpl` in the server's dedicated OMCSI clone (Step 7). Record the edit in a `.env` comment, since a fresh clone loses it. On a running server the same edit needs a re-apply, which restarts the server (Step 8, item 5). Do not use the `helm upgrade --reuse-values --set …` opt-out from OMCSI's README here: Terraform's own `helm upgrade` runs without `--reuse-values` whenever the rendered values change, which drops it. `DO_NOT_TRACK` is not an option either, because the chart does not pass it to the pod.
 
 Generate secrets rather than inventing them (`secrets.choice` over `string.ascii_letters+string.digits`, 32+ chars). Never print a secret into the transcript, a commit message, or a log.
 
@@ -271,7 +272,7 @@ Record *why* a value is what it is, especially when it contradicts upstream defa
 
 ### 11 — Hand over
 
-Report: the address, what was verified and how, what was **not** verified, the monthly cost, anything left for the user, and any upstream bug filed. If a Discord webhook is available, post progress there as you go — a long provision is otherwise silent.
+Report: the address, what was verified and how, what was **not** verified, the monthly cost, whether usage reporting was left on (Step 5; the wrapper logs `Usage reporting is on` or `Usage reporting is off` at every start), anything left for the user, and any upstream bug filed. If a Discord webhook is available, post progress there as you go — a long provision is otherwise silent.
 
 When posting issues or PRs under the user's GitHub identity, follow their conventions: passive voice, attribute the work to Claude, and sign off. **Never name a private repository in a public issue** — check with `gh api repos/<owner>/<repo> -q .private` before writing a body, since edit history preserves the leak.
 
@@ -299,6 +300,7 @@ When posting issues or PRs under the user's GitHub identity, follow their conven
 | `server.properties` hand-edits, or `/whitelist on` in game | Regenerated on every container start; only the `TF_VAR_`-backed keys persist |
 | "It enables, so it works" | Runtime failure floods the log and destroys history |
 | Restarting while players are online | Drops everyone; also rolls back plugins that save only in `onDisable` |
+| Usage reporting opted out with `helm upgrade --reuse-values --set` | The next apply that changes a templated value drops it, and reporting resumes |
 
 ---
 
